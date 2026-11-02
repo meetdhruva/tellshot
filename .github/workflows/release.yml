@@ -206,13 +206,17 @@ jobs:
 
       - name: Windows installer
         if: matrix.inno
+        env:
+          # Stop Git Bash from rewriting arguments that look like POSIX paths.
+          MSYS_NO_PATHCONV: "1"
         run: |
           choco install innosetup --no-progress -y
           cp assets/icons/tellshot.ico "$STAGE/"
           iscc="/c/Program Files (x86)/Inno Setup 6/ISCC.exe"
-          "$iscc" "/DAppVersion=$VERSION" "/DArch=${{ matrix.inno }}" \
-            "/DSourceDir=$(cygpath -w "$PWD/$STAGE")" "/DOutputDir=$(cygpath -w "$PWD/dist")" \
-            packaging/windows/tellshot.iss
+          "$iscc" "-DAppVersion=$VERSION" "-DArch=${{ matrix.inno }}" \
+            "-DSourceDir=$(cygpath -w "$PWD/$STAGE")" "-DOutputDir=$(cygpath -w "$PWD/dist")" \
+            "$(cygpath -w "$PWD/packaging/windows/tellshot.iss")"
+          ls dist/*-setup.exe
           rm "$STAGE/tellshot.ico"
 
       - name: Collect
