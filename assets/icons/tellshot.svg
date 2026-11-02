@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Tellshot</title>
+  <!-- Master app icon. Edit this file, then run `cargo xtask icons` to regenerate every format. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a4bd0"/>
+      <stop offset="1" stop-color="#1f2a86"/>
+    </linearGradient>
+  </defs>
+  <!-- Tile: inset so the shape matches platform icon grids (macOS uses an 824 px body). -->
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#tile)"/>
+  <!-- Viewfinder corners: "capture". -->
+  <g fill="none" stroke="#ffffff" stroke-width="64" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M232 372 V292 a60 60 0 0 1 60 -60 H372"/>
+    <path d="M652 232 H732 a60 60 0 0 1 60 60 V372"/>
+    <path d="M792 652 V732 a60 60 0 0 1 -60 60 H652"/>
+    <path d="M372 792 H292 a60 60 0 0 1 -60 -60 V652"/>
+  </g>
+  <!-- Annotation arrow: "tell". Okabe–Ito vermilion, lifted for contrast on indigo. -->
+  <path d="M352 672 L560 464" fill="none" stroke="#f07a2e" stroke-width="84" stroke-linecap="round"/>
+  <path d="M672 352 L652 556 L468 372 Z" fill="#f07a2e" stroke="#f07a2e" stroke-width="28" stroke-linejoin="round"/>
+</svg>

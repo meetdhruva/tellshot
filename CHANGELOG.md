@@ -24,12 +24,19 @@ First public foundation release. Expect rough edges; see the [roadmap](docs/road
   versioned and validated on load, written atomically.
 - Redaction that destroys pixels on export, including where blur or pixelate overlap it.
 - Scrolling-capture stitching with sticky header and footer detection (`tellshot stitch`).
+- Installers: Windows setup (per-user, Start menu, optional PATH and `.tellshot` association),
+  macOS `.app` in a `.dmg`, Linux `.deb` with desktop entry, file type, icons and shell
+  completions; portable archives for all six targets; checksums and build provenance.
+- App icon in every platform format, Windows version information and a high-DPI manifest.
+- `tellshot completions <shell>` for bash, zsh, fish, PowerShell and elvish.
 
 ### Known limitations
 
 - No global hotkeys, tray icon or region overlay yet; capture from the CLI or the editor.
 - Wayland sessions cannot capture yet (XWayland apps excepted).
-- Windows and macOS capture is untested on real hardware; binaries are not code-signed.
+- Windows and macOS capture is untested on real hardware; binaries are not code-signed or
+  notarized.
+- On macOS, double-clicking a `.tellshot` file does not open it yet; use Open (Cmd+O) in the editor.
 - Text annotations support Latin scripts only.
 
 [Unreleased]: https://github.com/meetdhruva/tellshot/compare/v0.1.0...HEAD

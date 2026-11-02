@@ -11,6 +11,7 @@
 - [x] Capture: trait, X11 backend (tested under Xvfb), interim Windows/macOS backend, synthetic
 - [x] IPC: versioned protocol with a frozen wire format
 - [x] CLI with `--json`, JSON Schema, stitching, and an MCP server for AI agents
+- [x] Installers for Windows, macOS and Linux (x64 and ARM64), app icon, built on every push
 - [x] Editor shell (Slint): all tools, keyboard drawing, annotations list, colours, undo, save,
       export, high contrast, reduced motion, UI tests through the accessibility tree
 
@@ -22,6 +23,8 @@
       Wayland via xdg-desktop-portal + PipeWire (`ashpd`)
 - [ ] Library: SQLite catalogue with FTS5 search and thumbnails
 - [ ] Clipboard copy of captures and exports; About dialog polish; settings persistence
+- [ ] macOS: open files from Finder (Apple Events), Developer ID signing and notarization;
+      Windows Authenticode signing; Flatpak
 
 ## Then: smart capture (v0.3)
 

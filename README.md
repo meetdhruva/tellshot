@@ -27,21 +27,17 @@ An open-source alternative to Snagit and Snagit Editor.
 
 ## Install
 
-Download the archive for your platform from the
+Download the installer for your platform from the
 [latest release](https://github.com/meetdhruva/tellshot/releases/latest):
 
-| Platform | Archive |
-|---|---|
-| Windows x64 / ARM64 | `tellshot-<version>-x86_64-pc-windows-msvc.zip` / `aarch64-pc-windows-msvc.zip` |
-| macOS Apple silicon / Intel | `tellshot-<version>-aarch64-apple-darwin.tar.gz` / `x86_64-apple-darwin.tar.gz` |
-| Linux x64 / ARM64 (glibc 2.35+) | `tellshot-<version>-x86_64-unknown-linux-gnu.tar.gz` / `aarch64-unknown-linux-gnu.tar.gz` |
+| Platform | Installer | Portable |
+|---|---|---|
+| Windows 10+ (x64, ARM64) | `tellshot-<version>-x64-setup.exe` / `arm64-setup.exe` | `.zip` |
+| macOS 11+ (Apple silicon, Intel) | `Tellshot-<version>-aarch64.dmg` / `x86_64.dmg` | `.tar.gz` |
+| Linux x64, ARM64 (glibc 2.35+) | `tellshot_<version>_amd64.deb` / `arm64.deb` | `.tar.gz` |
 
-Each archive contains `tellshot` (CLI and MCP server) and `tellshot-editor`. Check downloads
-against `SHA256SUMS.txt`, or verify build provenance with
-`gh attestation verify <archive> --repo meetdhruva/tellshot`.
-
-Binaries are not code-signed yet. On macOS, run `xattr -d com.apple.quarantine tellshot
-tellshot-editor` after unpacking; on Windows, SmartScreen may ask you to confirm.
+Step-by-step instructions, including first launch of the unsigned builds, are in
+[docs/install.md](docs/install.md).
 
 To build from source, install Rust (the pinned toolchain installs automatically) and run
 `cargo build --release`. On Linux you also need `libfontconfig1-dev` and `libxkbcommon-dev`.

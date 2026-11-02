@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.meetdhruva.Tellshot</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT OR Apache-2.0</project_license>
+  <name>Tellshot</name>
+  <summary>Capture, annotate and share screenshots</summary>
+  <description>
+    <p>
+      Tellshot is a fast, reliable and accessible screenshot tool. Annotate captures with arrows,
+      shapes, text, numbered steps and highlights, and redact sensitive details so they cannot be
+      recovered from the exported image.
+    </p>
+    <p>
+      Everything works from the keyboard and with screen readers, and a command-line tool and MCP
+      server let scripts and AI agents capture and annotate too.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.meetdhruva.Tellshot.desktop</launchable>
+  <url type="homepage">https://github.com/meetdhruva/tellshot</url>
+  <url type="bugtracker">https://github.com/meetdhruva/tellshot/issues</url>
+  <developer id="io.github.meetdhruva">
+    <name>Tellshot contributors</name>
+  </developer>
+  <content_rating type="oars-1.1"/>
+  <provides>
+    <binary>tellshot</binary>
+    <binary>tellshot-editor</binary>
+    <mediatype>application/x-tellshot</mediatype>
+  </provides>
+  <releases>
+    <release version="0.1.0" date="2026-11-02"/>
+  </releases>
+</component>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Tellshot (small sizes)</title>
+  <!-- Simplified master for 16–32 px: fuller tile, fewer and thicker strokes. -->
+  <rect x="32" y="32" width="960" height="960" rx="200" fill="#2a37a8"/>
+  <g fill="none" stroke="#ffffff" stroke-width="112" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M200 400 V200 H400"/>
+    <path d="M824 624 V824 H624"/>
+  </g>
+  <path d="M290 734 L600 424" fill="none" stroke="#f07a2e" stroke-width="150" stroke-linecap="round"/>
+  <path d="M760 264 L730 590 L434 294 Z" fill="#f07a2e" stroke="#f07a2e" stroke-width="40" stroke-linejoin="round"/>
+</svg>

@@ -1,18 +1,29 @@
 name: Release
 
-# Push a tag like v0.1.0 (or v0.2.0-rc.1 for a pre-release) to build and publish binaries.
-# The tag must match the workspace version in Cargo.toml.
+# Builds and packages Tellshot for every platform.
+# - Every push to main (and PRs that touch packaging) builds all installers and uploads them as
+#   workflow artifacts, so packaging is tested long before a release.
+# - Pushing a tag like v0.1.0 (or v0.2.0-rc.1 for a pre-release) also publishes a GitHub release.
+#   The tag must match the workspace version in Cargo.toml.
 on:
   push:
+    branches: [main]
     tags: ["v[0-9]+.[0-9]+.[0-9]+*"]
+  pull_request:
+    paths:
+      - ".github/workflows/release.yml"
+      - "packaging/**"
+      - "assets/**"
+      - "crates/buildinfo/**"
+      - "apps/*/build.rs"
   workflow_dispatch:
-    inputs:
-      tag:
-        description: Existing tag to (re)build, e.g. v0.1.0
-        required: true
 
 permissions:
   contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 env:
   CARGO_TERM_COLOR: always
@@ -23,55 +34,59 @@ jobs:
     name: Plan
     runs-on: ubuntu-latest
     outputs:
-      tag: ${{ steps.meta.outputs.tag }}
       version: ${{ steps.meta.outputs.version }}
+      publish: ${{ steps.meta.outputs.publish }}
       prerelease: ${{ steps.meta.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag || github.ref }}
       - id: meta
-        name: Check the tag matches Cargo.toml
+        name: Read the version (and check the tag matches it)
         shell: bash
         run: |
-          tag="${{ inputs.tag || github.ref_name }}"
-          version="${tag#v}"
-          cargo_version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
-          if [ "$version" != "$cargo_version" ]; then
-            echo "::error::Tag $tag does not match workspace version $cargo_version"
-            exit 1
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          publish=false
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            if [ "${GITHUB_REF_NAME#v}" != "$version" ]; then
+              echo "::error::Tag $GITHUB_REF_NAME does not match workspace version $version"
+              exit 1
+            fi
+            publish=true
           fi
           prerelease=false
           case "$version" in *-*) prerelease=true ;; esac
           {
-            echo "tag=$tag"
             echo "version=$version"
+            echo "publish=$publish"
             echo "prerelease=$prerelease"
           } >> "$GITHUB_OUTPUT"
 
   build:
-    name: Build ${{ matrix.target }}
+    name: ${{ matrix.target }}
     needs: plan
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { target: x86_64-unknown-linux-gnu, os: ubuntu-22.04, archive: tar.gz }
-          - { target: aarch64-unknown-linux-gnu, os: ubuntu-22.04-arm, archive: tar.gz }
-          - { target: x86_64-pc-windows-msvc, os: windows-latest, archive: zip }
-          - { target: aarch64-pc-windows-msvc, os: windows-11-arm, archive: zip }
-          # Cross-compiled on Apple silicon; the smoke test is skipped because it cannot run there.
-          - { target: x86_64-apple-darwin, os: macos-latest, archive: tar.gz, cross: true }
-          - { target: aarch64-apple-darwin, os: macos-latest, archive: tar.gz }
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-22.04, deb: amd64 }
+          - { target: aarch64-unknown-linux-gnu, os: ubuntu-22.04-arm, deb: arm64 }
+          - { target: x86_64-pc-windows-msvc, os: windows-latest, inno: x64 }
+          - { target: aarch64-pc-windows-msvc, os: windows-11-arm, inno: arm64 }
+          - { target: aarch64-apple-darwin, os: macos-latest }
+          # Cross-compiled on Apple silicon; its smoke test is skipped because it cannot run there.
+          - { target: x86_64-apple-darwin, os: macos-latest, cross: true }
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
       id-token: write
       attestations: write
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+      TARGET: ${{ matrix.target }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.plan.outputs.tag }}
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           target: ${{ matrix.target }}
@@ -79,98 +94,182 @@ jobs:
           cache-key: release-${{ matrix.target }}
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev
-      - name: Build
-        run: cargo build --release --locked --target ${{ matrix.target }} -p tellshot-cli -p tellshot-editor
-      - name: Package
-        id: package
-        shell: bash
         run: |
-          name="tellshot-${{ needs.plan.outputs.version }}-${{ matrix.target }}"
-          mkdir -p "dist/$name"
-          ext=""
-          case "${{ matrix.target }}" in *windows*) ext=".exe" ;; esac
-          for bin in tellshot tellshot-editor; do
-            cp "target/${{ matrix.target }}/release/$bin$ext" "dist/$name/"
-          done
-          cp README.md CHANGELOG.md LICENSE-MIT LICENSE-APACHE "dist/$name/"
-          cd dist
-          if [ "${{ matrix.archive }}" = "zip" ]; then
-            7z a -tzip "$name.zip" "$name" > /dev/null
-            echo "file=dist/$name.zip" >> "$GITHUB_OUTPUT"
-          else
-            tar -czf "$name.tar.gz" "$name"
-            echo "file=dist/$name.tar.gz" >> "$GITHUB_OUTPUT"
-          fi
+          sudo apt-get update
+          sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev desktop-file-utils appstream
+      - name: Build
+        run: cargo build --release --locked --target "$TARGET" -p tellshot-cli -p tellshot-editor
+
+      - name: Stage files
+        run: |
+          ext=""; [[ "$TARGET" == *windows* ]] && ext=".exe"
+          stage="dist/tellshot-$VERSION-$TARGET"
+          mkdir -p "$stage"
+          cp "target/$TARGET/release/tellshot$ext" "target/$TARGET/release/tellshot-editor$ext" "$stage/"
+          cp README.md CHANGELOG.md LICENSE-MIT LICENSE-APACHE "$stage/"
+          echo "STAGE=$stage" >> "$GITHUB_ENV"
+          echo "EXT=$ext" >> "$GITHUB_ENV"
+
       - name: Smoke test
         if: ${{ !matrix.cross }}
-        shell: bash
         run: |
-          ext=""
-          case "${{ matrix.target }}" in *windows*) ext=".exe" ;; esac
-          bin="target/${{ matrix.target }}/release/tellshot$ext"
-          "$bin" --version
-          "$bin" capture --backend synthetic --region 0,0,320,200 -o smoke.tellshot
-          "$bin" edit smoke.tellshot --edit '{"op":"add","shape":{"kind":"arrow","from":{"x":10,"y":10},"to":{"x":200,"y":150}}}'
-          "$bin" export smoke.tellshot -o smoke.png
+          cli="$STAGE/tellshot$EXT"
+          "$cli" --version
+          "$STAGE/tellshot-editor$EXT" --version
+          "$cli" capture --backend synthetic --region 0,0,320,200 -o smoke.tellshot
+          "$cli" edit smoke.tellshot --edit '{"op":"add","shape":{"kind":"arrow","from":{"x":10,"y":10},"to":{"x":200,"y":150}}}'
+          "$cli" export smoke.tellshot -o smoke.png
+          "$cli" --json describe smoke.tellshot
+
+      - name: Archive
+        run: |
+          cd dist
+          name="$(basename "$STAGE")"
+          if [[ "$TARGET" == *windows* ]]; then
+            7z a -tzip "$name.zip" "$name" > /dev/null
+          else
+            tar -czf "$name.tar.gz" "$name"
+          fi
+
+      - name: Debian package
+        if: matrix.deb
+        run: |
+          root="$RUNNER_TEMP/deb"
+          id=io.github.meetdhruva.Tellshot
+          install -Dm755 "$STAGE/tellshot" "$root/usr/bin/tellshot"
+          install -Dm755 "$STAGE/tellshot-editor" "$root/usr/bin/tellshot-editor"
+          install -Dm644 "packaging/linux/$id.desktop" "$root/usr/share/applications/$id.desktop"
+          install -Dm644 "packaging/linux/$id.metainfo.xml" "$root/usr/share/metainfo/$id.metainfo.xml"
+          install -Dm644 "packaging/linux/$id.mime.xml" "$root/usr/share/mime/packages/$id.xml"
+          for size in 16 22 24 32 48 64 128 256 512; do
+            install -Dm644 "assets/icons/png/tellshot-$size.png" \
+              "$root/usr/share/icons/hicolor/${size}x${size}/apps/$id.png"
+          done
+          install -Dm644 assets/icons/tellshot.svg "$root/usr/share/icons/hicolor/scalable/apps/$id.svg"
+          "$STAGE/tellshot" completions bash > completions.bash
+          "$STAGE/tellshot" completions zsh > completions.zsh
+          "$STAGE/tellshot" completions fish > completions.fish
+          install -Dm644 completions.bash "$root/usr/share/bash-completion/completions/tellshot"
+          install -Dm644 completions.zsh "$root/usr/share/zsh/vendor-completions/_tellshot"
+          install -Dm644 completions.fish "$root/usr/share/fish/vendor_completions.d/tellshot.fish"
+          install -Dm644 README.md "$root/usr/share/doc/tellshot/README.md"
+          {
+            echo "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/"
+            echo "Upstream-Name: Tellshot"
+            echo "Source: https://github.com/meetdhruva/tellshot"
+            echo
+            echo "Files: *"
+            echo "Copyright: Tellshot contributors"
+            echo "License: MIT or Apache-2.0"
+          } > "$root/usr/share/doc/tellshot/copyright"
+          mkdir -p "$root/DEBIAN"
+          size=$(du -sk "$root/usr" | cut -f1)
+          cat > "$root/DEBIAN/control" <<EOF
+          Package: tellshot
+          Version: $VERSION
+          Architecture: ${{ matrix.deb }}
+          Maintainer: Tellshot contributors <268780292+meetdhruva@users.noreply.github.com>
+          Installed-Size: $size
+          Depends: libc6 (>= 2.35), libfontconfig1, libxkbcommon0, libxkbcommon-x11-0
+          Recommends: xdg-desktop-portal
+          Section: graphics
+          Priority: optional
+          Homepage: https://github.com/meetdhruva/tellshot
+          Description: Capture, annotate and share screenshots
+           Tellshot is a fast, reliable and accessible screenshot tool with an editor,
+           a command-line tool and an MCP server for AI agents.
+          EOF
+          desktop-file-validate "$root/usr/share/applications/$id.desktop"
+          appstreamcli validate --no-net --explain "$root/usr/share/metainfo/$id.metainfo.xml"
+          dpkg-deb --root-owner-group --build "$root" "dist/tellshot_${VERSION}_${{ matrix.deb }}.deb"
+          sudo apt-get install -y "./dist/tellshot_${VERSION}_${{ matrix.deb }}.deb"
+          tellshot --version
+          dpkg -L tellshot
+
+      - name: macOS app and disk image
+        if: runner.os == 'macOS'
+        run: |
+          arch="${TARGET%%-*}"
+          app="$RUNNER_TEMP/dmg/Tellshot.app"
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+          cp "$STAGE/tellshot-editor" "$STAGE/tellshot" "$app/Contents/MacOS/"
+          cp assets/icons/tellshot.icns "$app/Contents/Resources/tellshot.icns"
+          sed "s/@VERSION@/$VERSION/g" packaging/macos/Info.plist > "$app/Contents/Info.plist"
+          plutil -lint "$app/Contents/Info.plist"
+          # Ad-hoc signature: required for Apple silicon; not a Developer ID signature.
+          codesign --force --deep --sign - "$app"
+          codesign --verify --deep --strict "$app"
+          ln -s /Applications "$RUNNER_TEMP/dmg/Applications"
+          hdiutil create -volname "Tellshot $VERSION" -srcfolder "$RUNNER_TEMP/dmg" -ov \
+            -format UDZO "dist/Tellshot-$VERSION-$arch.dmg"
+          hdiutil verify "dist/Tellshot-$VERSION-$arch.dmg"
+
+      - name: Windows installer
+        if: matrix.inno
+        run: |
+          choco install innosetup --no-progress -y
+          cp assets/icons/tellshot.ico "$STAGE/"
+          iscc="/c/Program Files (x86)/Inno Setup 6/ISCC.exe"
+          "$iscc" "/DAppVersion=$VERSION" "/DArch=${{ matrix.inno }}" \
+            "/DSourceDir=$(cygpath -w "$PWD/$STAGE")" "/DOutputDir=$(cygpath -w "$PWD/dist")" \
+            packaging/windows/tellshot.iss
+          rm "$STAGE/tellshot.ico"
+
+      - name: Collect
+        run: |
+          rm -rf "$STAGE"
+          ls -la dist
+
       - name: Attest build provenance
+        if: needs.plan.outputs.publish == 'true'
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: ${{ steps.package.outputs.file }}
+          subject-path: dist/*
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target }}
-          path: ${{ steps.package.outputs.file }}
+          name: tellshot-${{ matrix.target }}
+          path: dist/*
           if-no-files-found: error
 
   publish:
-    name: Publish
+    name: Publish release
     needs: [plan, build]
+    if: needs.plan.outputs.publish == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.plan.outputs.tag }}
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
       - name: Checksums
         working-directory: dist
-        run: sha256sum tellshot-* > SHA256SUMS.txt && cat SHA256SUMS.txt
+        run: sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
       - name: Release notes from CHANGELOG.md
+        env:
+          VERSION: ${{ needs.plan.outputs.version }}
         run: |
-          version="${{ needs.plan.outputs.version }}"
-          awk -v v="$version" '
+          awk -v v="$VERSION" '
             $0 ~ "^## \\[" v "\\]" { found = 1; next }
             found && /^## \[/ { exit }
             found { print }
           ' CHANGELOG.md > notes.md
-          cat >> notes.md <<'EOF'
-
-          ## Install
-
-          Download the archive for your platform, unpack it, and run `tellshot --help` or
-          `tellshot-editor`. Verify a download with `sha256sum -c SHA256SUMS.txt --ignore-missing`,
-          or its build provenance with `gh attestation verify <file> --repo ${{ github.repository }}`.
-
-          Binaries are not yet code-signed. On macOS, run
-          `xattr -d com.apple.quarantine tellshot tellshot-editor` after unpacking; on Windows,
-          SmartScreen may ask you to confirm.
-          EOF
+          cat docs/install.md >> notes.md
       - name: Create or update the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          PRERELEASE: ${{ needs.plan.outputs.prerelease }}
         run: |
-          tag="${{ needs.plan.outputs.tag }}"
-          flags=""
-          if [ "${{ needs.plan.outputs.prerelease }}" = "true" ]; then flags="--prerelease"; fi
-          if gh release view "$tag" > /dev/null 2>&1; then
-            gh release upload "$tag" dist/* --clobber
-            gh release edit "$tag" --notes-file notes.md
+          flags=()
+          if [ "$PRERELEASE" = "true" ]; then flags+=(--prerelease); fi
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+            gh release edit "$TAG" --notes-file notes.md
           else
-            gh release create "$tag" dist/* --title "Tellshot ${{ needs.plan.outputs.version }}" \
-              --notes-file notes.md --verify-tag $flags
+            gh release create "$TAG" dist/* --title "Tellshot $VERSION" \
+              --notes-file notes.md --verify-tag "${flags[@]}"
           fi

@@ -23,6 +23,7 @@ tellshot-render = { path = "crates/render" }
 tellshot-format = { path = "crates/format" }
 tellshot-capture = { path = "crates/capture" }
 tellshot-ipc = { path = "crates/ipc" }
+tellshot-buildinfo = { path = "crates/buildinfo" }
 
 # Serialization
 serde = { version = "1.0.229", default-features = false, features = ["derive", "alloc"] }

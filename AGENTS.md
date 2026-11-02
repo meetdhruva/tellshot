@@ -26,6 +26,9 @@ A change is done only when `cargo ci` passes. Do not weaken a lint, a test or a 
 | `crates/ipc` | Agent ↔ client protocol | Append enum variants only; `wire_format_is_frozen` test enforces it. |
 | `apps/cli` | `tellshot` binary: CLI + MCP server | One implementation in `ops.rs` serves both. Stable error codes in `error.rs`. |
 | `apps/editor` | Slint editor | `session.rs` holds all behaviour (unit-tested, no Slint); `ui/*.slint` is layout only. |
+| `crates/buildinfo` | Build-script helper: Windows icon, version info, manifest | Used by each binary's `build.rs`. |
+| `assets/icons` | App icon masters (SVG) and generated PNG/ICO/ICNS | Edit the SVGs, then `cargo xtask icons`. |
+| `packaging` | Desktop entry, MIME, AppStream, `Info.plist`, Inno Setup script | Built by `.github/workflows/release.yml` on every push to `main`. |
 | `xtask` | Repo automation | Rust, not shell, so it runs on every OS. |
 | `docs/adr` | Why things are the way they are | Add an ADR for any decision that is expensive to reverse. |
 

@@ -127,6 +127,11 @@ enum Command {
         #[arg(long)]
         root: Option<PathBuf>,
     },
+    /// Print a shell completion script, for example `tellshot completions bash`.
+    Completions {
+        #[arg(value_enum)]
+        shell: clap_complete::Shell,
+    },
 }
 
 fn parse_region(spec: &str) -> Result<PhysicalRect, String> {
@@ -239,12 +244,20 @@ fn run(command: Command, json: bool) -> Result<(), CliError> {
             saved(json, "stitched", &ops::stitch(&frames, &output, overwrite)?)
         }
         Command::Schema { which } => write_stdout(&format!("{:#}\n", ops::schema(which))),
+        Command::Completions { shell } => completions(shell),
         Command::Mcp { root } => {
             let sandbox = mcp::Sandbox::new(root.as_deref())?;
             mcp::serve(std::io::stdin().lock(), std::io::stdout().lock(), &sandbox)
                 .map_err(CliError::from)
         }
     }
+}
+
+fn completions(shell: clap_complete::Shell) -> Result<(), CliError> {
+    let mut out = Vec::new();
+    let mut command = <Cli as clap::CommandFactory>::command();
+    clap_complete::generate(shell, &mut command, "tellshot", &mut out);
+    write_stdout(&String::from_utf8_lossy(&out))
 }
 
 fn saved(json: bool, verb: &str, s: &ops::Saved) -> Result<(), CliError> {

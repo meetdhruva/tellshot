@@ -5,7 +5,10 @@
 //! cargo xtask fmt       # format the workspace
 //! cargo xtask bless     # regenerate golden images after an intended rendering change
 //! cargo xtask schema    # regenerate docs/schema/*.json from the CLI
+//! cargo xtask icons     # regenerate every icon format from assets/icons/tellshot.svg
 //! ```
+
+mod icons;
 
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
@@ -18,14 +21,16 @@ fn main() -> ExitCode {
         "fmt" => run("cargo", &["fmt", "--all"]),
         "bless" => bless(),
         "schema" => schema(),
+        "icons" => icons::generate(&workspace_root()),
         _ => {
             let _ignored = writeln!(
                 std::io::stderr(),
-                "usage: cargo xtask <ci|fmt|bless|schema>\n\n\
+                "usage: cargo xtask <ci|fmt|bless|schema|icons>\n\n\
                  ci      run every check CI runs (fmt, clippy, tests, docs, deny, typos, machete)\n\
                  fmt     format the workspace\n\
                  bless   regenerate golden images after an intended rendering change\n\
-                 schema  regenerate docs/schema/*.json"
+                 schema  regenerate docs/schema/*.json\n\
+                 icons   regenerate PNG, ICO and ICNS icons from the SVG master"
             );
             return ExitCode::from(2);
         }

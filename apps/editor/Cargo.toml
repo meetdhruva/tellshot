@@ -35,6 +35,7 @@ rfd = "0.17.2"
 
 [build-dependencies]
 slint-build = { workspace = true }
+tellshot-buildinfo = { workspace = true }
 
 [dev-dependencies]
 i-slint-backend-testing = { workspace = true }

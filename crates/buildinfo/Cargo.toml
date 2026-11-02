@@ -1,0 +1,19 @@
+[package]
+name = "tellshot-buildinfo"
+description = "Build-script helper: embeds the Tellshot icon, version information and application manifest into Windows executables."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+keywords = ["build", "windows", "resources"]
+categories = ["development-tools::build-utils"]
+
+[dependencies]
+embed-resource = "3.0.12"
+
+[lints]
+workspace = true
