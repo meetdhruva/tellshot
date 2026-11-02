@@ -1,0 +1,24 @@
+[package]
+name = "tellshot-imaging"
+description = "Pixel algorithms for Tellshot: blur, pixelate, secure redaction and scrolling-capture stitching. no_std."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish.workspace = true
+keywords = ["image", "blur", "stitching", "screenshot"]
+categories = ["graphics", "multimedia::images", "no-std"]
+
+[dependencies]
+libm = { workspace = true }
+
+[dev-dependencies]
+divan = "0.1.21"
+
+[[bench]]
+name = "imaging"
+harness = false
+
+[lints]
+workspace = true

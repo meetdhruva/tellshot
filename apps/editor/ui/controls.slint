@@ -1,0 +1,118 @@
+// Accessible building blocks. Every interactive control:
+//   * has an accessible role and a label (UI tests fail otherwise),
+//   * is reachable with Tab and activates with Enter/Space,
+//   * draws a visible focus ring,
+//   * is at least Theme.target-size in both dimensions.
+
+import { Theme } from "theme.slint";
+
+// A square toggle button with a stroked 24×24 icon path and a tooltip-like label.
+export component ToolButton inherits Rectangle {
+    in property <string> label;
+    in property <string> shortcut;
+    in property <string> icon;
+    in property <bool> active;
+    in property <bool> enabled: true;
+    // Toggle buttons (tools) report checked state; action buttons (undo, save) do not.
+    in property <bool> toggle: true;
+    callback clicked();
+
+    width: Theme.target-size;
+    height: Theme.target-size;
+    border-radius: Theme.radius;
+    background: root.active ? Theme.accent : (touch.has-hover ? Theme.surface : transparent);
+    border-width: focus.has-focus ? Theme.focus-width : 0px;
+    border-color: Theme.focus-ring;
+    opacity: root.enabled ? 1 : 0.4;
+    animate background { duration: Theme.motion-fast; }
+
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-description: root.shortcut == "" ? "" : "Shortcut " + root.shortcut;
+    accessible-checkable: root.toggle;
+    accessible-checked: root.toggle && root.active;
+    accessible-enabled: root.enabled;
+    accessible-action-default => { if (root.enabled) { root.clicked(); } }
+
+    Path {
+        width: 20px;
+        height: 20px;
+        viewbox-width: 24;
+        viewbox-height: 24;
+        commands: root.icon;
+        stroke: root.active ? Theme.on-accent : Theme.text;
+        stroke-width: 1.75px;
+        fill: transparent;
+    }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        clicked => { focus.focus(); root.clicked(); }
+    }
+
+    focus := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if (event.text == " " || event.text == "\n") {
+                root.clicked();
+                return accept;
+            }
+            return reject;
+        }
+    }
+}
+
+// A colour swatch. The label is the colour's name, never just the colour.
+export component Swatch inherits Rectangle {
+    in property <string> label;
+    in property <color> swatch;
+    in property <bool> active;
+    callback clicked();
+
+    width: Theme.target-size;
+    height: Theme.target-size;
+    border-radius: Theme.target-size / 2;
+    background: root.swatch;
+    border-width: root.active || focus.has-focus ? 3px : Theme.border-width;
+    border-color: root.active || focus.has-focus ? Theme.focus-ring : Theme.border;
+
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-checkable: true;
+    accessible-checked: root.active;
+    accessible-action-default => { root.clicked(); }
+
+    TouchArea { clicked => { focus.focus(); root.clicked(); } }
+    focus := FocusScope {
+        key-pressed(event) => {
+            if (event.text == " " || event.text == "\n") {
+                root.clicked();
+                return accept;
+            }
+            return reject;
+        }
+    }
+}
+
+// Lucide-style icon paths (24×24 viewbox, stroked). Drawn here, so no asset licensing.
+export global Icons {
+    out property <string> select: "M5 3 L5 19 L9.5 14.5 L12.5 21 L15 20 L12 13.5 L18 13.5 Z";
+    out property <string> arrow: "M5 19 L19 5 M10 5 L19 5 L19 14";
+    out property <string> line: "M5 19 L19 5";
+    out property <string> rectangle: "M4 6 L20 6 L20 18 L4 18 Z";
+    out property <string> ellipse: "M12 5 C17 5 21 8 21 12 C21 16 17 19 12 19 C7 19 3 16 3 12 C3 8 7 5 12 5 Z";
+    out property <string> text: "M5 6 L5 4 L19 4 L19 6 M12 4 L12 20 M9 20 L15 20";
+    out property <string> step: "M12 3 C17 3 21 7 21 12 C21 17 17 21 12 21 C7 21 3 17 3 12 C3 7 7 3 12 3 Z M10 9 L12 7.5 L12 16.5 M10 16.5 L14 16.5";
+    out property <string> highlight: "M4 20 L20 20 M7 16 L15 4 L19 7 L11 19 L7 19 Z";
+    out property <string> blur: "M12 3 C12 3 6 10 6 14 C6 17.5 8.7 20 12 20 C15.3 20 18 17.5 18 14 C18 10 12 3 12 3 Z";
+    out property <string> pixelate: "M4 4 L10 4 L10 10 L4 10 Z M14 4 L20 4 L20 10 L14 10 Z M4 14 L10 14 L10 20 L4 20 Z M14 14 L20 14 L20 20 L14 20 Z";
+    out property <string> redact: "M3 9 L21 9 L21 15 L3 15 Z M6 12 L18 12";
+    out property <string> pen: "M4 20 L8 19 L19 8 L16 5 L5 16 Z M14 7 L17 10";
+    out property <string> undo: "M9 14 L4 9 L9 4 M4 9 L15 9 C18 9 20 11 20 14 C20 17 18 19 15 19 L11 19";
+    out property <string> redo: "M15 14 L20 9 L15 4 M20 9 L9 9 C6 9 4 11 4 14 C4 17 6 19 9 19 L13 19";
+    out property <string> save: "M5 4 L16 4 L20 8 L20 20 L4 20 L4 4 Z M8 4 L8 9 L15 9 L15 4 M8 20 L8 14 L16 14 L16 20";
+    out property <string> export: "M12 3 L12 15 M7 8 L12 3 L17 8 M5 15 L5 20 L19 20 L19 15";
+    out property <string> open: "M3 6 L9 6 L11 8 L21 8 L21 19 L3 19 Z";
+    out property <string> info: "M12 3 C17 3 21 7 21 12 C21 17 17 21 12 21 C7 21 3 17 3 12 C3 7 7 3 12 3 Z M12 11 L12 17 M12 7.5 L12 8";
+    out property <string> delete: "M4 7 L20 7 M9 7 L9 4 L15 4 L15 7 M6 7 L7 20 L17 20 L18 7";
+}

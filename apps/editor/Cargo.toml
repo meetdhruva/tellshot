@@ -1,0 +1,43 @@
+[package]
+name = "tellshot-editor"
+description = "The Tellshot editor: annotate captures with a keyboard-first, screen-reader-friendly UI."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish.workspace = true
+keywords = ["screenshot", "annotation", "editor"]
+categories = ["multimedia::images", "gui"]
+
+[lib]
+name = "tellshot_editor"
+path = "src/lib.rs"
+
+[[bin]]
+name = "tellshot-editor"
+path = "src/main.rs"
+
+[features]
+default = []
+# Embeds Slint's MCP server so AI coding agents can inspect and drive the running UI through its
+# accessibility tree. Development only: start with SLINT_MCP_PORT=8765. Never enabled in releases.
+agent-inspect = ["slint/mcp"]
+
+[dependencies]
+tellshot-core = { workspace = true }
+tellshot-imaging = { workspace = true }
+tellshot-render = { workspace = true }
+tellshot-format = { workspace = true }
+tellshot-capture = { workspace = true }
+slint = { workspace = true }
+rfd = "0.17.2"
+
+[build-dependencies]
+slint-build = { workspace = true }
+
+[dev-dependencies]
+i-slint-backend-testing = { workspace = true }
+
+[lints]
+workspace = true

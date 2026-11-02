@@ -1,0 +1,34 @@
+[package]
+name = "tellshot-cli"
+description = "Tellshot from the terminal, scripts and AI agents: capture, edit, export, and an MCP server."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish.workspace = true
+keywords = ["screenshot", "cli", "mcp"]
+categories = ["command-line-utilities", "multimedia::images"]
+
+[[bin]]
+name = "tellshot"
+path = "src/main.rs"
+
+[dependencies]
+tellshot-core = { workspace = true, features = ["schema"] }
+tellshot-imaging = { workspace = true }
+tellshot-render = { workspace = true }
+tellshot-format = { workspace = true }
+tellshot-capture = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true, features = ["std"] }
+serde_json = { workspace = true }
+schemars = { workspace = true }
+base64 = "0.23.1"
+tracing-subscriber = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,6 @@
+/target
+**/*.rs.bk
+*.profraw
+junit.xml
+/fixtures/golden/*.actual.png
+.DS_Store

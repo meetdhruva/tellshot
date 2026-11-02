@@ -1,0 +1,29 @@
+[package]
+name = "tellshot-core"
+description = "Pure document model, edits and undo history for Tellshot. no_std: it cannot touch files, network or clock."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish.workspace = true
+keywords = ["screenshot", "annotation", "undo"]
+categories = ["graphics", "no-std"]
+
+[features]
+default = []
+# JSON Schema for documents and edits (used by the CLI and the MCP server). Requires std.
+schema = ["dep:schemars", "std"]
+std = []
+
+[dependencies]
+serde = { workspace = true }
+libm = { workspace = true }
+schemars = { workspace = true, optional = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,7 @@
+[files]
+extend-exclude = ["target/", "fixtures/", "*.png"]
+
+[default.extend-words]
+# "Ser" in serde contexts; "Hel" is a deliberate partial word in a typing test.
+ser = "ser"
+hel = "hel"

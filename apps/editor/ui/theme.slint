@@ -1,0 +1,45 @@
+// Design tokens: the only place colours, spacing, type and motion are defined.
+// Components never hard-code values; they read Theme. See docs/design/tokens.md.
+
+import { Palette } from "std-widgets.slint";
+
+export global Theme {
+    // User preferences (set from Rust; persisted in settings).
+    in-out property <bool> high-contrast: false;
+    in-out property <bool> reduce-motion: false;
+
+    property <bool> dark: Palette.color-scheme == ColorScheme.dark;
+
+    // ---- Colour ---------------------------------------------------------------------------
+    out property <color> surface: high-contrast ? (dark ? #000000 : #ffffff) : (dark ? #1c1e22 : #f6f7f9);
+    out property <color> surface-raised: high-contrast ? (dark ? #000000 : #ffffff) : (dark ? #26292e : #ffffff);
+    out property <color> canvas-backdrop: dark ? #121316 : #e3e6ea;
+    out property <color> text: high-contrast ? (dark ? #ffffff : #000000) : (dark ? #e8eaed : #1f2328);
+    out property <color> text-muted: high-contrast ? text : (dark ? #a9aeb6 : #59606a);
+    out property <color> border: high-contrast ? text : (dark ? #3a3e45 : #d0d5dc);
+    out property <color> accent: high-contrast ? (dark ? #ffd400 : #0000c8) : (dark ? #7cb4ff : #0b5cd5);
+    out property <color> on-accent: high-contrast ? (dark ? #000000 : #ffffff) : (dark ? #0b1a2e : #ffffff);
+    out property <color> selection: accent;
+    // Focus ring must reach 3:1 against both surfaces (WCAG 2.2 SC 1.4.11 / 2.4.13).
+    out property <color> focus-ring: high-contrast ? (dark ? #ffd400 : #c80000) : accent;
+
+    // ---- Shape and space (4 px grid) ------------------------------------------------------
+    out property <length> space-1: 4px;
+    out property <length> space-2: 8px;
+    out property <length> space-3: 12px;
+    out property <length> space-4: 16px;
+    out property <length> radius: 6px;
+    out property <length> border-width: high-contrast ? 2px : 1px;
+    out property <length> focus-width: 2px;
+    // Minimum pointer target. WCAG 2.2 asks for 24 px; we use 36 px for comfort.
+    out property <length> target-size: 36px;
+
+    // ---- Type -----------------------------------------------------------------------------
+    out property <length> font-small: 12px;
+    out property <length> font-body: 14px;
+    out property <length> font-title: 16px;
+
+    // ---- Motion (zeroed when the user prefers reduced motion) -----------------------------
+    out property <duration> motion-fast: reduce-motion ? 0ms : 90ms;
+    out property <duration> motion-medium: reduce-motion ? 0ms : 160ms;
+}

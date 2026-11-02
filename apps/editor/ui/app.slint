@@ -1,0 +1,384 @@
+// The editor window. Layout and interaction only: every decision lives in Rust (src/editor.rs).
+// Keyboard-first: every action has a shortcut, every tool works without a pointer (Enter inserts
+// the current shape, arrow keys move it), and every control has an accessible name.
+
+import { AboutSlint, Button, CheckBox, LineEdit, Slider, StandardListView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { ToolButton, Swatch, Icons } from "controls.slint";
+
+export { Theme, Icons }
+
+export struct ToolInfo {
+    id: string,
+    label: string,
+    shortcut: string,
+    icon: string,
+}
+
+export struct SwatchInfo {
+    label: string,
+    swatch: color,
+}
+
+export component AppWindow inherits Window {
+    title: root.window-title;
+    preferred-width: 1200px;
+    preferred-height: 800px;
+    min-width: 720px;
+    min-height: 480px;
+    background: Theme.surface;
+    default-font-size: Theme.font-body;
+    forward-focus: keys;
+
+    in property <string> window-title: "Tellshot";
+    in property <string> version;
+    in property <bool> has-document;
+    in property <image> canvas;
+    in property <[ToolInfo]> tools;
+    in property <string> tool: "select";
+    in property <[SwatchInfo]> swatches;
+    in property <int> swatch-index: 0;
+    in-out property <float> stroke-width: 4;
+    in property <bool> can-undo;
+    in property <string> undo-label;
+    in property <bool> can-redo;
+    in property <string> redo-label;
+    in property <string> status;
+    in property <[StandardListViewItem]> annotations;
+    in-out property <int> selected-index: -1;
+    in property <bool> has-selection;
+    in property <float> sel-x;
+    in property <float> sel-y;
+    in property <float> sel-w;
+    in property <float> sel-h;
+    in property <bool> selected-is-text;
+    in-out property <string> selected-text;
+
+    callback select-tool(string);
+    // Letter shortcuts are resolved in Rust so the tool list has a single source of truth.
+    callback shortcut(string) -> bool;
+    callback pointer-down(float, float);
+    callback pointer-move(float, float);
+    callback pointer-up(float, float);
+    callback insert-shape();
+    callback nudge(float, float);
+    callback undo();
+    callback redo();
+    callback delete-selected();
+    callback deselect();
+    callback save();
+    callback export();
+    callback open();
+    callback capture();
+    callback swatch-chosen(int);
+    callback width-changed(float);
+    callback annotation-chosen(int);
+    callback text-edited(string);
+
+    keys := FocusScope {
+        key-pressed(event) => {
+            if (event.modifiers.control || event.modifiers.meta) {
+                if (event.text == "z" && !event.modifiers.shift) { root.undo(); return accept; }
+                if (event.text == "z" || event.text == "Z" || event.text == "y") { root.redo(); return accept; }
+                if (event.text == "s") { root.save(); return accept; }
+                if (event.text == "e") { root.export(); return accept; }
+                if (event.text == "o") { root.open(); return accept; }
+                return reject;
+            }
+            if (event.text == Key.Delete || event.text == Key.Backspace) { root.delete-selected(); return accept; }
+            if (event.text == Key.Escape) { root.deselect(); return accept; }
+            if (event.text == Key.F1) { about.show(); return accept; }
+            if (event.text == Key.Return) { root.insert-shape(); return accept; }
+            if (event.text == Key.LeftArrow) { root.nudge(event.modifiers.shift ? -10 : -1, 0); return accept; }
+            if (event.text == Key.RightArrow) { root.nudge(event.modifiers.shift ? 10 : 1, 0); return accept; }
+            if (event.text == Key.UpArrow) { root.nudge(0, event.modifiers.shift ? -10 : -1); return accept; }
+            if (event.text == Key.DownArrow) { root.nudge(0, event.modifiers.shift ? 10 : 1); return accept; }
+            if (root.shortcut(event.text)) { return accept; }
+            return reject;
+        }
+
+        VerticalLayout {
+            // ---- Toolbar --------------------------------------------------------------------
+            Rectangle {
+                background: Theme.surface-raised;
+                border-width: Theme.border-width;
+                border-color: Theme.border;
+                height: Theme.target-size + 2 * Theme.space-2;
+                accessible-role: groupbox;
+                accessible-label: "Tools";
+
+                HorizontalLayout {
+                    padding: Theme.space-2;
+                    spacing: Theme.space-1;
+
+                    for t in root.tools: ToolButton {
+                        label: t.label;
+                        shortcut: t.shortcut;
+                        icon: t.icon;
+                        active: root.tool == t.id;
+                        enabled: root.has-document;
+                        clicked => { root.select-tool(t.id); keys.focus(); }
+                    }
+
+                    Rectangle { width: Theme.space-3; }
+
+                    ToolButton {
+                        label: root.undo-label == "" ? "Undo" : "Undo " + root.undo-label;
+                        shortcut: "Ctrl+Z";
+                        icon: Icons.undo;
+                        toggle: false;
+                        enabled: root.can-undo;
+                        clicked => { root.undo(); keys.focus(); }
+                    }
+                    ToolButton {
+                        label: root.redo-label == "" ? "Redo" : "Redo " + root.redo-label;
+                        shortcut: "Ctrl+Shift+Z";
+                        icon: Icons.redo;
+                        toggle: false;
+                        enabled: root.can-redo;
+                        clicked => { root.redo(); keys.focus(); }
+                    }
+                    ToolButton {
+                        label: "Delete selected";
+                        shortcut: "Delete";
+                        icon: Icons.delete;
+                        toggle: false;
+                        enabled: root.has-selection;
+                        clicked => { root.delete-selected(); keys.focus(); }
+                    }
+
+                    Rectangle { horizontal-stretch: 1; }
+
+                    ToolButton {
+                        label: "About Tellshot";
+                        shortcut: "F1";
+                        icon: Icons.info;
+                        toggle: false;
+                        clicked => { about.show(); }
+                    }
+                    ToolButton {
+                        label: "Open";
+                        shortcut: "Ctrl+O";
+                        icon: Icons.open;
+                        toggle: false;
+                        clicked => { root.open(); }
+                    }
+                    ToolButton {
+                        label: "Save";
+                        shortcut: "Ctrl+S";
+                        icon: Icons.save;
+                        toggle: false;
+                        enabled: root.has-document;
+                        clicked => { root.save(); }
+                    }
+                    ToolButton {
+                        label: "Export PNG";
+                        shortcut: "Ctrl+E";
+                        icon: Icons.export;
+                        toggle: false;
+                        enabled: root.has-document;
+                        clicked => { root.export(); }
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                vertical-stretch: 1;
+
+                // ---- Canvas -----------------------------------------------------------------
+                canvas-area := Rectangle {
+                    horizontal-stretch: 1;
+                    background: Theme.canvas-backdrop;
+                    clip: true;
+                    accessible-role: image;
+                    accessible-label: root.has-document ? "Canvas" : "No capture open";
+                    accessible-description: "Draw with the current tool, or press Enter to insert it at the centre. Select annotations in the Annotations list.";
+
+                    property <float> image-w: max(1, root.canvas.width);
+                    property <float> image-h: max(1, root.canvas.height);
+                    property <float> scale: min(1, (self.width / 1px - 32) / self.image-w, (self.height / 1px - 32) / self.image-h);
+                    property <length> shown-w: self.image-w * self.scale * 1px;
+                    property <length> shown-h: self.image-h * self.scale * 1px;
+                    property <length> origin-x: (self.width - self.shown-w) / 2;
+                    property <length> origin-y: (self.height - self.shown-h) / 2;
+
+                    pure function to-doc-x(px: length) -> float {
+                        return (px - self.origin-x) / 1px / self.scale;
+                    }
+                    pure function to-doc-y(px: length) -> float {
+                        return (px - self.origin-y) / 1px / self.scale;
+                    }
+
+                    if root.has-document: Image {
+                        x: canvas-area.origin-x;
+                        y: canvas-area.origin-y;
+                        width: canvas-area.shown-w;
+                        height: canvas-area.shown-h;
+                        source: root.canvas;
+                        image-fit: fill;
+                        accessible-role: none;
+                    }
+
+                    if root.has-document && root.has-selection: Rectangle {
+                        x: canvas-area.origin-x + (root.sel-x * canvas-area.scale) * 1px - 3px;
+                        y: canvas-area.origin-y + (root.sel-y * canvas-area.scale) * 1px - 3px;
+                        width: root.sel-w * canvas-area.scale * 1px + 6px;
+                        height: root.sel-h * canvas-area.scale * 1px + 6px;
+                        border-width: 2px;
+                        border-color: Theme.selection;
+                        border-radius: 2px;
+                    }
+
+                    if root.has-document: TouchArea {
+                        mouse-cursor: root.tool == "select" ? MouseCursor.default : MouseCursor.crosshair;
+                        pointer-event(event) => {
+                            if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
+                                keys.focus();
+                                root.pointer-down(canvas-area.to-doc-x(self.mouse-x), canvas-area.to-doc-y(self.mouse-y));
+                            } else if (event.button == PointerEventButton.left && event.kind == PointerEventKind.up) {
+                                root.pointer-up(canvas-area.to-doc-x(self.mouse-x), canvas-area.to-doc-y(self.mouse-y));
+                            }
+                        }
+                        moved => {
+                            if (self.pressed) {
+                                root.pointer-move(canvas-area.to-doc-x(self.mouse-x), canvas-area.to-doc-y(self.mouse-y));
+                            }
+                        }
+                    }
+
+                    if !root.has-document: VerticalLayout {
+                        alignment: center;
+                        spacing: Theme.space-4;
+                        padding: Theme.space-4;
+                        Text {
+                            text: "Capture your screen or open a file to start annotating.";
+                            horizontal-alignment: center;
+                            font-size: Theme.font-title;
+                            color: Theme.text;
+                            wrap: word-wrap;
+                        }
+                        HorizontalLayout {
+                            alignment: center;
+                            spacing: Theme.space-2;
+                            Button {
+                                text: "Capture screen";
+                                primary: true;
+                                clicked => { root.capture(); }
+                            }
+                            Button {
+                                text: "Open…";
+                                clicked => { root.open(); }
+                            }
+                        }
+                    }
+                }
+
+                // ---- Inspector --------------------------------------------------------------
+                Rectangle {
+                    width: 280px;
+                    background: Theme.surface-raised;
+                    border-width: Theme.border-width;
+                    border-color: Theme.border;
+
+                    VerticalLayout {
+                        padding: Theme.space-3;
+                        spacing: Theme.space-2;
+
+                        Text { text: "Colour"; color: Theme.text-muted; font-size: Theme.font-small; }
+                        Rectangle {
+                            height: 2 * (Theme.target-size + Theme.space-2);
+                            accessible-role: groupbox;
+                            accessible-label: "Colour";
+                            for s[i] in root.swatches: Swatch {
+                                x: mod(i, 5) * (Theme.target-size + Theme.space-2);
+                                y: floor(i / 5) * (Theme.target-size + Theme.space-2);
+                                label: s.label;
+                                swatch: s.swatch;
+                                active: i == root.swatch-index;
+                                clicked => { root.swatch-chosen(i); }
+                            }
+                        }
+
+                        Text { text: "Stroke width: " + round(root.stroke-width) + " px"; color: Theme.text-muted; font-size: Theme.font-small; }
+                        Slider {
+                            minimum: 1;
+                            maximum: 24;
+                            step: 1;
+                            value <=> root.stroke-width;
+                            accessible-label: "Stroke width";
+                            changed(value) => { root.width-changed(value); }
+                        }
+
+                        if root.selected-is-text: Text { text: "Text"; color: Theme.text-muted; font-size: Theme.font-small; }
+                        if root.selected-is-text: LineEdit {
+                            text <=> root.selected-text;
+                            placeholder-text: "Annotation text";
+                            accessible-label: "Annotation text";
+                            edited(value) => { root.text-edited(value); }
+                        }
+
+                        Text { text: "Annotations"; color: Theme.text-muted; font-size: Theme.font-small; }
+                        StandardListView {
+                            vertical-stretch: 1;
+                            model: root.annotations;
+                            current-item <=> root.selected-index;
+                            accessible-label: "Annotations";
+                            current-item-changed(index) => { root.annotation-chosen(index); }
+                        }
+
+                        CheckBox { text: "High contrast"; checked <=> Theme.high-contrast; }
+                        CheckBox { text: "Reduce motion"; checked <=> Theme.reduce-motion; }
+                    }
+                }
+            }
+
+            // ---- Status bar -----------------------------------------------------------------
+            Rectangle {
+                height: 28px;
+                background: Theme.surface-raised;
+                border-width: Theme.border-width;
+                border-color: Theme.border;
+                HorizontalLayout {
+                    padding-left: Theme.space-3;
+                    padding-right: Theme.space-3;
+                    status-text := Text {
+                        text: root.status;
+                        color: Theme.text-muted;
+                        vertical-alignment: center;
+                        font-size: Theme.font-small;
+                        accessible-role: text;
+                        accessible-label: "Status: " + root.status;
+                    }
+                }
+            }
+        }
+    }
+
+    // Required by the Slint Royalty-free licence: the AboutSlint credit, reachable from the
+    // main UI (ADR 0002).
+    about := PopupWindow {
+        x: (root.width - 380px) / 2;
+        y: 72px;
+        width: 380px;
+        Rectangle {
+            background: Theme.surface-raised;
+            border-radius: 8px;
+            border-width: Theme.border-width;
+            border-color: Theme.border;
+            accessible-role: groupbox;
+            accessible-label: "About Tellshot";
+            VerticalLayout {
+                padding: Theme.space-4;
+                spacing: Theme.space-3;
+                Text { text: "Tellshot " + root.version; font-size: Theme.font-title; color: Theme.text; }
+                Text {
+                    text: "Capture, annotate and share screenshots. Free software under the MIT or Apache-2.0 licence.";
+                    wrap: word-wrap;
+                    color: Theme.text-muted;
+                }
+                AboutSlint { }
+                Button { text: "Close"; clicked => { about.close(); } }
+            }
+        }
+    }
+}

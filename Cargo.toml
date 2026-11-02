@@ -1,0 +1,201 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "apps/*", "xtask"]
+default-members = ["crates/*", "apps/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+# Policy: we pin the latest stable toolchain (rust-toolchain.toml) and treat it as the MSRV.
+# Tellshot ships binaries, not a library ecosystem, so an older MSRV buys nothing. See ADR 0006.
+rust-version = "1.97"
+license = "MIT OR Apache-2.0"
+authors = ["Tellshot contributors"]
+publish = false
+
+[workspace.dependencies]
+# Internal crates
+tellshot-core = { path = "crates/core" }
+tellshot-imaging = { path = "crates/imaging" }
+tellshot-render = { path = "crates/render" }
+tellshot-format = { path = "crates/format" }
+tellshot-capture = { path = "crates/capture" }
+tellshot-ipc = { path = "crates/ipc" }
+
+# Serialization
+serde = { version = "1.0.229", default-features = false, features = ["derive", "alloc"] }
+serde_json = "1.0.154"
+postcard = { version = "1.1.3", default-features = false, features = ["alloc"] }
+schemars = "1.2.3"
+
+# Errors, diagnostics, CLI
+thiserror = { version = "2.0.21", default-features = false }
+anyhow = "1.0.104"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
+clap = { version = "4.6.7", features = ["derive", "env", "wrap_help"] }
+
+# Graphics and files
+tiny-skia = "0.12.0"
+png = "0.18.1"
+zip = { version = "9.2.1", default-features = false, features = ["deflate"] }
+tempfile = "3.27.0"
+fontdb = "0.24.0"
+ttf-parser = "0.25.1"
+libm = "0.2.16"
+
+# Platform
+x11rb = { version = "0.14.0", default-features = false, features = ["randr"] }
+xcap = "0.9.8"
+
+# UI
+slint = { version = "1.18.1", default-features = false, features = ["std", "compat-1-2", "backend-winit", "renderer-software", "software-renderer-systemfonts", "accessibility"] }
+slint-build = "1.18.1"
+i-slint-backend-testing = "1.18.1"
+
+# Testing
+proptest = "1.12.0"
+
+[profile.dev]
+# Line tables are enough for backtraces and keep incremental builds fast.
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+# Image, font and UI dependencies are unusably slow unoptimized; optimize them even in dev.
+opt-level = 2
+
+[profile.dev.package.tellshot-imaging]
+opt-level = 2
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+# Keep unwinding: process boundaries (agent ↔ editor, plugins) rely on catch_unwind.
+panic = "unwind"
+# Line tables let crash reports symbolicate; packaging strips and archives symbols separately.
+debug = "line-tables-only"
+
+[profile.profiling]
+inherits = "release"
+debug = true
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+non_ascii_idents = "forbid"
+missing_docs = "warn"
+missing_debug_implementations = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+single_use_lifetimes = "warn"
+redundant_lifetimes = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+let_underscore_drop = "warn"
+meta_variable_misuse = "warn"
+unit_bindings = "warn"
+unnameable_types = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(fuzzing)", "cfg(coverage_nightly)"] }
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "warn"
+bare_urls = "warn"
+
+[workspace.lints.clippy]
+# Groups (priority -1 so individual lints below override them).
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+# Transitive duplicates are outside our control; cargo-deny reports them instead.
+multiple_crate_versions = "allow"
+# Apps are not published to crates.io yet; revisit when the core crates are.
+cargo_common_metadata = "allow"
+
+# Nursery picks: useful, low false-positive rate.
+branches_sharing_code = "warn"
+cognitive_complexity = "warn"
+collection_is_never_read = "warn"
+debug_assert_with_mut_call = "warn"
+derive_partial_eq_without_eq = "warn"
+fallible_impl_from = "warn"
+imprecise_flops = "warn"
+iter_on_single_items = "warn"
+iter_with_drain = "warn"
+large_stack_frames = "warn"
+needless_pass_by_ref_mut = "warn"
+nonstandard_macro_braces = "warn"
+or_fun_call = "warn"
+path_buf_push_overwrite = "warn"
+read_zero_byte_vec = "warn"
+redundant_clone = "warn"
+set_contains_or_insert = "warn"
+string_lit_as_bytes = "warn"
+suboptimal_flops = "warn"
+too_long_first_doc_paragraph = "warn"
+trait_duplication_in_bounds = "warn"
+type_repetition_in_bounds = "warn"
+unnecessary_struct_initialization = "warn"
+unused_peekable = "warn"
+use_self = "warn"
+useless_let_if_seq = "warn"
+while_float = "warn"
+
+# Restriction picks: no silent suppression, no panics in shipped code paths.
+allow_attributes = "deny"                 # use #[expect(..., reason = "...")] so stale suppressions fail
+allow_attributes_without_reason = "deny"
+unwrap_used = "deny"
+expect_used = "warn"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "warn"
+dbg_macro = "deny"
+print_stdout = "deny"                     # write through a locked handle; handles broken pipes
+print_stderr = "deny"
+exit = "deny"
+mem_forget = "deny"
+string_slice = "warn"                     # byte-slicing a str panics on UTF-8 boundaries
+indexing_slicing = "warn"
+get_unwrap = "warn"
+undocumented_unsafe_blocks = "deny"
+multiple_unsafe_ops_per_block = "deny"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+missing_assert_message = "warn"
+float_cmp_const = "warn"
+lossy_float_literal = "warn"
+clone_on_ref_ptr = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+str_to_string = "warn"
+mod_module_files = "deny"                 # foo.rs + foo/ , never foo/mod.rs
+rest_pat_in_fully_bound_structs = "warn"
+wildcard_enum_match_arm = "warn"
+if_then_some_else_none = "warn"
+infinite_loop = "warn"
+let_underscore_must_use = "warn"
+verbose_file_reads = "warn"
+unneeded_field_pattern = "warn"
+renamed_function_params = "warn"
+unused_result_ok = "warn"
+pathbuf_init_then_push = "warn"
+empty_drop = "warn"
+empty_structs_with_brackets = "warn"
+empty_enum_variants_with_brackets = "warn"
+format_push_string = "warn"
+fn_to_numeric_cast_any = "warn"
+large_include_file = "warn"
+needless_raw_strings = "warn"
+partial_pub_fields = "warn"
+same_name_method = "warn"
+suspicious_xor_used_as_pow = "warn"
+try_err = "warn"
+unseparated_literal_suffix = "warn"
+redundant_type_annotations = "warn"

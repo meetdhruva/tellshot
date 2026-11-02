@@ -1,0 +1,6 @@
+[alias]
+# `cargo xtask <task>` runs repository automation written in Rust (no shell scripts, works on every OS).
+xtask = "run --quiet --package xtask --"
+# The exact gate CI runs. Agents and humans should run this before pushing.
+ci = "xtask ci"
+lint = "clippy --workspace --all-targets --locked -- -D warnings"

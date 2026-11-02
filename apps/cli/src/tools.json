@@ -1,0 +1,195 @@
+[
+  {
+    "name": "list_targets",
+    "title": "List capture targets",
+    "description": "Lists monitors that can be captured, primary first, with their bounds in physical pixels.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "backend": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "synthetic"
+          ],
+          "default": "auto",
+          "description": "'auto' captures the real screen; 'synthetic' a deterministic test pattern"
+        }
+      }
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "capture",
+    "title": "Capture the screen",
+    "description": "Captures a monitor (optionally a region) and saves it as a .tellshot project or .png.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "output": {
+          "type": "string",
+          "description": "Path ending in .tellshot or .png"
+        },
+        "target": {
+          "type": "string",
+          "description": "Target id from list_targets; default primary monitor"
+        },
+        "region": {
+          "type": "object",
+          "description": "Area in physical desktop pixels; omit for the whole target",
+          "properties": {
+            "x": {
+              "type": "integer"
+            },
+            "y": {
+              "type": "integer"
+            },
+            "width": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "width",
+            "height"
+          ]
+        },
+        "backend": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "synthetic"
+          ],
+          "default": "auto",
+          "description": "'auto' captures the real screen; 'synthetic' a deterministic test pattern"
+        },
+        "overwrite": {
+          "type": "boolean",
+          "default": false,
+          "description": "Replace an existing file"
+        }
+      },
+      "required": [
+        "output"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false
+    }
+  },
+  {
+    "name": "describe",
+    "title": "Describe a project",
+    "description": "Lists the annotations in a project with ids, kinds, bounds and readable descriptions.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "description": "Path to a .tellshot project (or a .png to read)"
+        }
+      },
+      "required": [
+        "project"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "apply_edits",
+    "title": "Annotate a project",
+    "description": "Applies edits (add arrows, boxes, text, step markers, highlights, redactions; move; restyle; crop) all-or-nothing, then saves the project. Returns ids of created objects.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "description": "Path to a .tellshot project"
+        },
+        "edits": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Edits in order; generated schema is inserted at runtime"
+        }
+      },
+      "required": [
+        "project",
+        "edits"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false
+    }
+  },
+  {
+    "name": "render_preview",
+    "title": "Preview a project",
+    "description": "Renders the project with all annotations and returns a downscaled PNG to look at.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "description": "Path to a .tellshot project (or a .png to read)"
+        },
+        "max_size": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 2048,
+          "default": 1024
+        }
+      },
+      "required": [
+        "project"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "export_png",
+    "title": "Export a PNG",
+    "description": "Flattens annotations into a PNG. Redacted pixels are destroyed in the output.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "description": "Path to a .tellshot project (or a .png to read)"
+        },
+        "output": {
+          "type": "string",
+          "description": "Path ending in .png"
+        },
+        "overwrite": {
+          "type": "boolean",
+          "default": false,
+          "description": "Replace an existing file"
+        }
+      },
+      "required": [
+        "project",
+        "output"
+      ]
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false
+    }
+  }
+]

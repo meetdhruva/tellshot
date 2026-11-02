@@ -1,0 +1,22 @@
+[package]
+name = "tellshot-ipc"
+description = "Typed, versioned, length-prefixed protocol between the Tellshot agent, editor and CLI."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish.workspace = true
+keywords = ["ipc", "protocol"]
+categories = ["encoding"]
+
+[dependencies]
+serde = { workspace = true, features = ["std"] }
+postcard = { workspace = true }
+thiserror = { workspace = true, features = ["std"] }
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[lints]
+workspace = true

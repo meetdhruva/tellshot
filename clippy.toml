@@ -1,0 +1,30 @@
+# Tests may panic: a failing assertion is the point of a test.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-dbg-in-tests = true
+allow-print-in-tests = true
+allow-indexing-slicing-in-tests = true
+
+# We ship applications, not a semver-stable library API.
+avoid-breaking-exported-api = false
+
+too-many-arguments-threshold = 6
+too-many-lines-threshold = 80
+cognitive-complexity-threshold = 20
+
+doc-valid-idents = [
+  "Tellshot", "ScreenCaptureKit", "ScreenCast", "PipeWire", "XWayland", "macOS", "iOS",
+  "AccessKit", "JSON", "PNG", "OCR", "MCP", "IPC", "UI", "UX", "RandR",
+  "..",
+]
+
+disallowed-methods = [
+  { path = "std::fs::write", reason = "user data must be written with tellshot_format::atomic_write so a crash never leaves a truncated file" },
+  { path = "std::fs::File::create", reason = "user data must be written with tellshot_format::atomic_write so a crash never leaves a truncated file" },
+]
+
+disallowed-types = [
+  { path = "std::collections::HashMap", reason = "iteration order is random; use BTreeMap so files, snapshots and tests are deterministic" },
+  { path = "std::collections::HashSet", reason = "iteration order is random; use BTreeSet so files, snapshots and tests are deterministic" },
+]
