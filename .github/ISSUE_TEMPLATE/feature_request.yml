@@ -1,0 +1,22 @@
+name: Feature request
+description: Suggest an improvement
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the problem or workflow, not only the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+  - type: checkboxes
+    id: roadmap
+    attributes:
+      label: Checks
+      options:
+        - label: I checked the [roadmap](https://github.com/meetdhruva/tellshot/blob/main/docs/roadmap.md) and existing issues.
+          required: true

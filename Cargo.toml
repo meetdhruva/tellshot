@@ -10,6 +10,8 @@ edition = "2024"
 # Tellshot ships binaries, not a library ecosystem, so an older MSRV buys nothing. See ADR 0006.
 rust-version = "1.97"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/meetdhruva/tellshot"
+homepage = "https://github.com/meetdhruva/tellshot"
 authors = ["Tellshot contributors"]
 publish = false
 

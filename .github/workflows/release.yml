@@ -1,0 +1,176 @@
+name: Release
+
+# Push a tag like v0.1.0 (or v0.2.0-rc.1 for a pre-release) to build and publish binaries.
+# The tag must match the workspace version in Cargo.toml.
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to (re)build, e.g. v0.1.0
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - id: meta
+        name: Check the tag matches Cargo.toml
+        shell: bash
+        run: |
+          tag="${{ inputs.tag || github.ref_name }}"
+          version="${tag#v}"
+          cargo_version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          if [ "$version" != "$cargo_version" ]; then
+            echo "::error::Tag $tag does not match workspace version $cargo_version"
+            exit 1
+          fi
+          prerelease=false
+          case "$version" in *-*) prerelease=true ;; esac
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-22.04, archive: tar.gz }
+          - { target: aarch64-unknown-linux-gnu, os: ubuntu-22.04-arm, archive: tar.gz }
+          - { target: x86_64-pc-windows-msvc, os: windows-latest, archive: zip }
+          - { target: aarch64-pc-windows-msvc, os: windows-11-arm, archive: zip }
+          # Cross-compiled on Apple silicon; the smoke test is skipped because it cannot run there.
+          - { target: x86_64-apple-darwin, os: macos-latest, archive: tar.gz, cross: true }
+          - { target: aarch64-apple-darwin, os: macos-latest, archive: tar.gz }
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.tag }}
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: ${{ matrix.target }}
+          rustflags: ""
+          cache-key: release-${{ matrix.target }}
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }} -p tellshot-cli -p tellshot-editor
+      - name: Package
+        id: package
+        shell: bash
+        run: |
+          name="tellshot-${{ needs.plan.outputs.version }}-${{ matrix.target }}"
+          mkdir -p "dist/$name"
+          ext=""
+          case "${{ matrix.target }}" in *windows*) ext=".exe" ;; esac
+          for bin in tellshot tellshot-editor; do
+            cp "target/${{ matrix.target }}/release/$bin$ext" "dist/$name/"
+          done
+          cp README.md CHANGELOG.md LICENSE-MIT LICENSE-APACHE "dist/$name/"
+          cd dist
+          if [ "${{ matrix.archive }}" = "zip" ]; then
+            7z a -tzip "$name.zip" "$name" > /dev/null
+            echo "file=dist/$name.zip" >> "$GITHUB_OUTPUT"
+          else
+            tar -czf "$name.tar.gz" "$name"
+            echo "file=dist/$name.tar.gz" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Smoke test
+        if: ${{ !matrix.cross }}
+        shell: bash
+        run: |
+          ext=""
+          case "${{ matrix.target }}" in *windows*) ext=".exe" ;; esac
+          bin="target/${{ matrix.target }}/release/tellshot$ext"
+          "$bin" --version
+          "$bin" capture --backend synthetic --region 0,0,320,200 -o smoke.tellshot
+          "$bin" edit smoke.tellshot --edit '{"op":"add","shape":{"kind":"arrow","from":{"x":10,"y":10},"to":{"x":200,"y":150}}}'
+          "$bin" export smoke.tellshot -o smoke.png
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ${{ steps.package.outputs.file }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ steps.package.outputs.file }}
+          if-no-files-found: error
+
+  publish:
+    name: Publish
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.tag }}
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum tellshot-* > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - name: Release notes from CHANGELOG.md
+        run: |
+          version="${{ needs.plan.outputs.version }}"
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          cat >> notes.md <<'EOF'
+
+          ## Install
+
+          Download the archive for your platform, unpack it, and run `tellshot --help` or
+          `tellshot-editor`. Verify a download with `sha256sum -c SHA256SUMS.txt --ignore-missing`,
+          or its build provenance with `gh attestation verify <file> --repo ${{ github.repository }}`.
+
+          Binaries are not yet code-signed. On macOS, run
+          `xattr -d com.apple.quarantine tellshot tellshot-editor` after unpacking; on Windows,
+          SmartScreen may ask you to confirm.
+          EOF
+      - name: Create or update the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ needs.plan.outputs.tag }}"
+          flags=""
+          if [ "${{ needs.plan.outputs.prerelease }}" = "true" ]; then flags="--prerelease"; fi
+          if gh release view "$tag" > /dev/null 2>&1; then
+            gh release upload "$tag" dist/* --clobber
+            gh release edit "$tag" --notes-file notes.md
+          else
+            gh release create "$tag" dist/* --title "Tellshot ${{ needs.plan.outputs.version }}" \
+              --notes-file notes.md --verify-tag $flags
+          fi

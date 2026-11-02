@@ -22,6 +22,20 @@ accessible, and keep the code easy for the next person (or agent) to change.
 - [ ] **Performance**: hot paths have a benchmark; no regression against the budgets in
       `docs/design/ux-principles.md`.
 
+## Releasing (maintainers)
+
+1. Move the `Unreleased` notes in `CHANGELOG.md` under a new version heading.
+2. Bump `version` in the workspace `Cargo.toml` and run `cargo check` to update `Cargo.lock`.
+3. Merge to `main`, then tag: `git tag -a v0.2.0 -m "Tellshot 0.2.0" && git push origin v0.2.0`.
+4. The `Release` workflow builds every platform, attaches archives, checksums and build
+   provenance, and publishes the release with the changelog section as notes. Tags with a
+   suffix (`v0.2.0-rc.1`) publish as pre-releases.
+
+## Code of conduct and security
+
+Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md). Report vulnerabilities
+privately as described in [SECURITY.md](SECURITY.md).
+
 ## Commit style
 
 Imperative subject under 72 characters ("Add pixelate tool"), body explaining why.

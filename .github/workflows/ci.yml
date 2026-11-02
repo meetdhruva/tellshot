@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -12,7 +16,6 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
-  RUSTFLAGS: -D warnings
 
 jobs:
   lint:
@@ -20,9 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # rustup reads rust-toolchain.toml and installs the pinned toolchain.
-      - run: rustup show
-      - uses: Swatinem/rust-cache@v2
+      # Reads rust-toolchain.toml, caches builds, and sets RUSTFLAGS=-D warnings.
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev
       - uses: taiki-e/install-action@v2
         with:
@@ -45,8 +47,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - run: rustup show
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-nextest
@@ -63,6 +64,9 @@ jobs:
         run: |
           cargo nextest run --workspace --locked --profile ci
           cargo test --workspace --doc --locked
+      - name: Clippy (platform-specific code)
+        if: runner.os != 'Linux'
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Upload golden-image diffs
         if: failure()
         uses: actions/upload-artifact@v4
@@ -76,6 +80,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: rustup show
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev
       - run: cargo bench --workspace --no-run --locked

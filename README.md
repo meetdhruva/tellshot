@@ -1,5 +1,9 @@
 # Tellshot
 
+[![CI](https://github.com/meetdhruva/tellshot/actions/workflows/ci.yml/badge.svg)](https://github.com/meetdhruva/tellshot/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/meetdhruva/tellshot?include_prereleases)](https://github.com/meetdhruva/tellshot/releases)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](#licence)
+
 Fast, reliable screen capture and annotation for Windows, macOS and Linux, written in Rust.
 An open-source alternative to Snagit and Snagit Editor.
 
@@ -20,6 +24,27 @@ An open-source alternative to Snagit and Snagit Editor.
 - **Built for automation and AI agents.** A scriptable CLI with JSON output and stable exit codes,
   JSON Schema for edits, and an MCP server so agents can capture, annotate, look at and export
   screenshots.
+
+## Install
+
+Download the archive for your platform from the
+[latest release](https://github.com/meetdhruva/tellshot/releases/latest):
+
+| Platform | Archive |
+|---|---|
+| Windows x64 / ARM64 | `tellshot-<version>-x86_64-pc-windows-msvc.zip` / `aarch64-pc-windows-msvc.zip` |
+| macOS Apple silicon / Intel | `tellshot-<version>-aarch64-apple-darwin.tar.gz` / `x86_64-apple-darwin.tar.gz` |
+| Linux x64 / ARM64 (glibc 2.35+) | `tellshot-<version>-x86_64-unknown-linux-gnu.tar.gz` / `aarch64-unknown-linux-gnu.tar.gz` |
+
+Each archive contains `tellshot` (CLI and MCP server) and `tellshot-editor`. Check downloads
+against `SHA256SUMS.txt`, or verify build provenance with
+`gh attestation verify <archive> --repo meetdhruva/tellshot`.
+
+Binaries are not code-signed yet. On macOS, run `xattr -d com.apple.quarantine tellshot
+tellshot-editor` after unpacking; on Windows, SmartScreen may ask you to confirm.
+
+To build from source, install Rust (the pinned toolchain installs automatically) and run
+`cargo build --release`. On Linux you also need `libfontconfig1-dev` and `libxkbcommon-dev`.
 
 ## Try it
 
