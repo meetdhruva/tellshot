@@ -52,10 +52,10 @@ fn monitor_target(m: &xcap::Monitor) -> Result<Target> {
     })
 }
 
-/// xcap reports macOS geometry in points (CGDisplayBounds) but captures in pixels; on Windows
+/// xcap reports macOS geometry in points (`CGDisplayBounds`) but captures in pixels; on Windows
 /// it already reports pixels. Normalise to physical pixels so regions line up with images.
 fn to_physical(r: PhysicalRect, scale: f32) -> PhysicalRect {
-    if !cfg!(target_os = "macos") || !(scale.is_finite() && scale > 0.0) {
+    if cfg!(not(target_os = "macos")) || !scale.is_finite() || scale <= 0.0 {
         return r;
     }
     #[expect(

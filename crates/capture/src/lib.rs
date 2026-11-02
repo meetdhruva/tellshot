@@ -193,6 +193,10 @@ fn native() -> Result<Box<dyn CaptureBackend>> {
 }
 
 #[cfg(any(windows, target_os = "macos"))]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "same signature on every platform; other backends can fail"
+)]
 fn native() -> Result<Box<dyn CaptureBackend>> {
     Ok(Box::new(xcap_backend::XcapBackend::new()))
 }
