@@ -98,14 +98,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev desktop-file-utils appstream
       - name: Build
-        run: cargo build --release --locked --target "$TARGET" -p tellshot-cli -p tellshot-editor
+        run: cargo build --profile dist --locked --target "$TARGET" -p tellshot-cli -p tellshot-editor
 
       - name: Stage files
         run: |
           ext=""; [[ "$TARGET" == *windows* ]] && ext=".exe"
           stage="dist/tellshot-$VERSION-$TARGET"
           mkdir -p "$stage"
-          cp "target/$TARGET/release/tellshot$ext" "target/$TARGET/release/tellshot-editor$ext" "$stage/"
+          cp "target/$TARGET/dist/tellshot$ext" "target/$TARGET/dist/tellshot-editor$ext" "$stage/"
           cp README.md CHANGELOG.md LICENSE-MIT LICENSE-APACHE "$stage/"
           echo "STAGE=$stage" >> "$GITHUB_ENV"
           echo "EXT=$ext" >> "$GITHUB_ENV"
@@ -223,6 +223,13 @@ jobs:
         run: |
           rm -rf "$STAGE"
           ls -la dist
+          for f in dist/*; do
+            case "$f" in
+              *.zip) 7z l "$f" ;;
+              *.tar.gz) tar -tzvf "$f" ;;
+              *.deb) dpkg-deb --info "$f" && dpkg-deb --contents "$f" ;;
+            esac
+          done
 
       - name: Attest build provenance
         if: needs.plan.outputs.publish == 'true'

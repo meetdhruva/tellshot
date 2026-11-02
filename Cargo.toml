@@ -78,6 +78,13 @@ panic = "unwind"
 # Line tables let crash reports symbolicate; packaging strips and archives symbols separately.
 debug = "line-tables-only"
 
+# What users download: no line tables (smaller), but function names stay so a crash backtrace is
+# still readable. Built by .github/workflows/release.yml.
+[profile.dist]
+inherits = "release"
+debug = false
+strip = "debuginfo"
+
 [profile.profiling]
 inherits = "release"
 debug = true
