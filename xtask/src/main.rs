@@ -67,7 +67,7 @@ fn ci() -> Result<(), String> {
         run("cargo", &["deny", "--locked", "check"])
     })?;
     optional_step(&["typos"], "spelling", || run("typos", &[]))?;
-    optional_step(&["cargo", "machete"], "unused dependencies", || run("cargo", &["machete"]))?;
+    optional_step(&["cargo", "machete"], "unused dependencies", || run("cargo-machete", &[]))?;
     say("all checks passed");
     Ok(())
 }
@@ -138,12 +138,20 @@ fn run_env(program: &str, args: &[&str], env: &[(&str, &str)]) -> Result<(), Str
     }
 }
 
-/// True when `program [subcommand] --help` succeeds, for example `["cargo", "deny"]`.
+/// True when the tool is installed: a cargo subcommand appears in `cargo --list`, any other
+/// program answers `--version`. (Some subcommands, like machete, have no `--version`.)
 fn tool_exists(command: &[&str]) -> bool {
-    let Some((program, rest)) = command.split_first() else {
-        return false;
-    };
-    Command::new(program).args(rest).arg("--version").output().is_ok_and(|o| o.status.success())
+    match command {
+        ["cargo", sub] => Command::new("cargo").arg("--list").output().is_ok_and(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .any(|l| l.split_whitespace().next() == Some(sub))
+        }),
+        [program, ..] => {
+            Command::new(program).arg("--version").output().is_ok_and(|o| o.status.success())
+        }
+        [] => false,
+    }
 }
 
 fn workspace_root() -> PathBuf {
