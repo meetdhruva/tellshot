@@ -146,12 +146,12 @@ jobs:
               "$root/usr/share/icons/hicolor/${size}x${size}/apps/$id.png"
           done
           install -Dm644 assets/icons/tellshot.svg "$root/usr/share/icons/hicolor/scalable/apps/$id.svg"
-          "$STAGE/tellshot" completions bash > completions.bash
-          "$STAGE/tellshot" completions zsh > completions.zsh
-          "$STAGE/tellshot" completions fish > completions.fish
-          install -Dm644 completions.bash "$root/usr/share/bash-completion/completions/tellshot"
-          install -Dm644 completions.zsh "$root/usr/share/zsh/vendor-completions/_tellshot"
-          install -Dm644 completions.fish "$root/usr/share/fish/vendor_completions.d/tellshot.fish"
+          comp="$RUNNER_TEMP/completions"
+          mkdir -p "$comp"
+          for shell in bash zsh fish; do "$STAGE/tellshot" completions "$shell" > "$comp/$shell"; done
+          install -Dm644 "$comp/bash" "$root/usr/share/bash-completion/completions/tellshot"
+          install -Dm644 "$comp/zsh" "$root/usr/share/zsh/vendor-completions/_tellshot"
+          install -Dm644 "$comp/fish" "$root/usr/share/fish/vendor_completions.d/tellshot.fish"
           install -Dm644 README.md "$root/usr/share/doc/tellshot/README.md"
           {
             echo "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/"
